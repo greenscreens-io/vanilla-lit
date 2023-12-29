@@ -1,6 +1,4 @@
-node_modules/
 TODO.txt
-modules/core/decorators.mjs
-modules/core/decorators/
 google
 samples
+node_modules/
