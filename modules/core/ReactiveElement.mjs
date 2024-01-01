@@ -215,7 +215,7 @@ export class ReactiveElement extends HTMLElement {
         // if (!(controller instanceof ReactiveController)) throw new Error('Argument not instance of ReactiveController');
         const me = this;
         (me.#controllers ??= new Set()).add(controller);
-        if (me.renderRoot !== undefined && me.isConnected) {
+        if (me.isConnected && me.renderRoot !== undefined) {
             controller.hostConnected?.();
         }
     }
