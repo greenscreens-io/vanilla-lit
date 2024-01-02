@@ -1,5 +1,5 @@
 
-import { ReactiveController } from './ReactiveController.mjs';
+// import { ReactiveController } from './ReactiveController.mjs';
 import { AttributeConverter } from './AttributeConverter.mjs';
 import { CSS } from './css/index.mjs';
 
@@ -14,15 +14,21 @@ const defaultPropertyDeclaration = {
     hasChanged: notEqual,
 }
 
-const attributeToPropertyMap = Symbol('attributeToPropertyMap');
-const prepare = Symbol('prepare');
+const attributeToPropertyMap = Symbol();
+const prepare = Symbol();
+const elementProperties = Symbol();
+const elementStyles = Symbol();
+const initializers = Symbol();
+const finalize = Symbol();
+const finalized = Symbol();
 
 const prepareFn = function () {
     const me = this;
-    if (Object.hasOwn(me, 'elementProperties')) return;
+    //if (Object.hasOwn(me, elementProperties)) return;
+    if (Object.getOwnPropertySymbols(me).includes(elementProperties)) return;
     const superCtor = Object.getPrototypeOf(me);
-    if (typeof superCtor.finalize === 'function') superCtor.finalize();
-    me.elementProperties = new Map(superCtor.elementProperties);
+    if (typeof superCtor[finalize] === 'function') superCtor[finalize]();
+    me[elementProperties] = new Map(superCtor[elementProperties]);
 }
 
 const attributeNameForProperty = (name, options) => {
@@ -47,15 +53,16 @@ export class ReactiveElement extends HTMLElement {
 
     static shadowRootOptions = { mode: 'open' };
 
-    static initializers = undefined;
-    static elementProperties = undefined;
-    static elementStyles = [];
+    // static initializers = undefined;
+    // static elementProperties = undefined;
+    // static elementStyles = [];
+    static [elementStyles] = [];
 
     // user defiend 
     static properties = {};
     static styles = undefined;
 
-    static finalized = false;
+    static [finalized] = false;
 
     #reflectingProperties = undefined;
     #instanceProperties = undefined;
@@ -69,14 +76,13 @@ export class ReactiveElement extends HTMLElement {
     #hasUpdated = false;
     #isUpdatePending = false;
 
-
     /**
      * Returns a list of attributes corresponding to the registered properties.
     */
     static get observedAttributes() {
         Object.defineProperty(ReactiveElement.__proto__, prepare, { value: prepareFn });
         const me = this;
-        me.finalize();
+        me[finalize]();
         return me[attributeToPropertyMap] && [...me[attributeToPropertyMap].keys()];
     }
 
@@ -86,10 +92,11 @@ export class ReactiveElement extends HTMLElement {
         me.initializers ??= [].push(initializer);
     }
 
-    static finalize() {
+    static [finalize]() {
         const me = this;
-        if (Object.hasOwn(me, 'finalized')) return;
-        me.finalized = true;
+        //if (Object.hasOwn(me, 'finalized')) return;
+        if (me[finalized] === true) return;
+        me[finalized] = true;
         me[prepare]();
 
         if (Object.hasOwn(me, 'properties')) {
@@ -108,7 +115,7 @@ export class ReactiveElement extends HTMLElement {
             const properties = ReactivePropertyMetadata.get(metadata);
             if (properties !== undefined) {
                 for (const [p, options] of properties) {
-                    me.elementProperties.set(p, options);
+                    me[elementProperties].set(p, options);
                 }
             }
         }
@@ -116,14 +123,14 @@ export class ReactiveElement extends HTMLElement {
 
         // Create the attribute-to-property map
         me[attributeToPropertyMap] = new Map();
-        for (const [p, options] of me.elementProperties) {
+        for (const [p, options] of me[elementProperties]) {
             const attr = attributeNameForProperty(p, options);
             if (attr !== undefined) {
                 me[attributeToPropertyMap].set(attr, p);
             }
         }
 
-        me.elementStyles = me.finalizeStyles(me.styles);
+        me[initializers] = me.finalizeStyles(me.styles);
     }
 
     static finalizeStyles(styles) {
@@ -141,7 +148,7 @@ export class ReactiveElement extends HTMLElement {
         const me = this;
         if (options.state) options.attribute = false;
         me[prepare]();
-        me.elementProperties.set(name, options);
+        me[elementProperties].set(name, options);
         if (!options.noAccessor) {
             const key = Symbol();
             const descriptor = me.getPropertyDescriptor(name, key, options);
@@ -176,7 +183,7 @@ export class ReactiveElement extends HTMLElement {
     }
 
     static getPropertyOptions(name) {
-        return this.elementProperties.get(name) ?? defaultPropertyDeclaration;
+        return this[elementProperties].get(name) ?? defaultPropertyDeclaration;
     }
 
     constructor() {
@@ -227,7 +234,7 @@ export class ReactiveElement extends HTMLElement {
     createRenderRoot() {
         const me = this;
         const renderRoot = me.shadowRoot ?? me.attachShadow(me.constructor.shadowRootOptions);
-        CSS.adoptStyles(renderRoot, me.constructor.elementStyles);
+        CSS.adoptStyles(renderRoot, me.constructor[elementStyles]);
         return renderRoot;
     }
 
@@ -290,9 +297,9 @@ export class ReactiveElement extends HTMLElement {
                 me.#instanceProperties = undefined;
             }
 
-            const elementProperties = me.constructor.elementProperties;
-            if (elementProperties.size > 0) {
-                for (const [p, options] of elementProperties) {
+            const elementProps = me.constructor[elementProperties];
+            if (elementProps.size > 0) {
+                for (const [p, options] of elementProps) {
                     if (
                         options.wrapped === true &&
                         !me.#changedProperties.has(p) &&
@@ -395,8 +402,8 @@ export class ReactiveElement extends HTMLElement {
 
     #propertyToAttribute(name, value) {
         const me = this;
-        const elemProperties = me.constructor.elementProperties;
-        const options = elemProperties?.get(name);
+        const elementProps = me.constructor[elementProperties];
+        const options = elementProps?.get(name);
         const attr = attributeNameForProperty(name, options);
         if (attr !== undefined && options.reflect === true) {
             const converter =
@@ -420,8 +427,8 @@ export class ReactiveElement extends HTMLElement {
     #saveInstanceProperties() {
         const me = this;
         const instanceProperties = new Map();
-        const elementProperties = me.constructor.elementProperties;
-        for (const p of elementProperties.keys()) {
+        const elementProps = me.constructor[elementProperties];
+        for (const p of elementProps.keys()) {
             if (Object.hasOwn(me, p)) {
                 instanceProperties.set(p, me[p]);
                 delete me[p];
@@ -438,6 +445,6 @@ export class ReactiveElement extends HTMLElement {
         me.#changedProperties = new Map();
         me.#saveInstanceProperties();
         me.requestUpdate();
-        me.constructor.initializers?.forEach((i) => i(this));
+        me.constructor[initializers]?.forEach((i) => i(this));
     }
 }
