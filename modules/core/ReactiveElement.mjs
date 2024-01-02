@@ -42,8 +42,6 @@ const attributeNameForProperty = (name, options) => {
                 : undefined;
 }
 
-Symbol.metadata ??= Symbol('metadata');
-
 globalThis.ReactivePropertyMetadata ??= new WeakMap();
 
 /**
@@ -110,7 +108,7 @@ export class ReactiveElement extends HTMLElement {
             }
         }
 
-        const metadata = me[Symbol.metadata];
+        const metadata = me[Symbol.for('metadata')];
         if (metadata !== null) {
             const properties = ReactivePropertyMetadata.get(metadata);
             if (properties !== undefined) {
