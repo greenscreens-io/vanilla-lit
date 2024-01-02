@@ -7,7 +7,6 @@ Instead, use Google Lit Elements 3.0.
 
 There are several reasons behind cloning and modifying original source to tailor it to our needs.
  - to remove all other wrapperas and support elements for other frameworks
- - to rely only only on rollup to combine all files into a single lib
+ - to rely only on rollup to combine all files into a single lib
  - to simplify debugging wihout need for server side tooling
  - to remove TyepScript, NodeJS and Babel building tools
- - to cleanup public class property space
