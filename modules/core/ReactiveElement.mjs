@@ -9,6 +9,7 @@ export const notEqual = (val, old) => !Object.is(val, old);
 const defaultPropertyDeclaration = {
     attribute: true,
     reflect: false,
+    useDefault: false,
     type: String,
     converter: defaultConverter,
     hasChanged: notEqual,
@@ -68,6 +69,7 @@ export class ReactiveElement extends HTMLElement {
     #controllers = undefined;
     #updatePromise = undefined;
     #changedProperties = undefined;
+    #defaultValues = undefined;
     #reflectingProperty = undefined;
     #renderRoot = undefined;
 
@@ -146,6 +148,12 @@ export class ReactiveElement extends HTMLElement {
         const me = this;
         if (options.state) options.attribute = false;
         me[prepare]();
+        // Whether this property is wrapping accessors.
+        // Helps control the initial value change and reflection logic.
+        if (me.prototype.hasOwnProperty(name)) {
+            options = Object.create(options);
+            options.wrapped = true;
+        }
         me[elementProperties].set(name, options);
         if (!options.noAccessor) {
             const key = Symbol();
@@ -166,9 +174,12 @@ export class ReactiveElement extends HTMLElement {
             },
         }
         return {
+            /*
             get() {
                 return get?.call(this);
-            },
+                },
+                */
+            get,
             set(value) {
                 const me = this;
                 const oldValue = get?.call(me);
@@ -197,7 +208,13 @@ export class ReactiveElement extends HTMLElement {
     }
 
     disconnectedCallback() {
-        this.#controllers?.forEach((c) => c.hostDisconnected?.());
+        const me = this;
+        me.#controllers?.forEach((c) => c.hostDisconnected?.());
+        me.adoptedStyleSheets = [];
+        me.#renderRoot = null;
+        if (me.shadowRoot) {
+            me.shadowRoot.adoptedStyleSheets = [];
+        }
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -246,7 +263,7 @@ export class ReactiveElement extends HTMLElement {
 
     scheduleUpdate() { return this.performUpdate(); }
 
-    shouldUpdate(changedProperties) { return true; }
+    shouldUpdate(changedProperties) { return this.isConnected; }
 
     willUpdate(changedProperties) { }
 
@@ -265,14 +282,21 @@ export class ReactiveElement extends HTMLElement {
     requestUpdate(name, oldValue, options) {
         const me = this;
         if (name !== undefined) {
-            options ??= (me.constructor).getPropertyOptions(name);
-            const hasChanged = options.hasChanged ?? notEqual;
+            const ctor = me.constructor;
             const newValue = me[name];
-            if (hasChanged(newValue, oldValue)) {
+
+            options ??= ctor.getPropertyOptions(name);
+
+            const changed = (options.hasChanged ?? notEqual)(newValue, oldValue) ||
+            (options.useDefault && options.reflect && newValue === me.#defaultValues?.get(name) && !me.hasAttribute(attributeNameForProperty(name, options)));
+
+            if (changed) {
                 me.#changeProperty(name, oldValue, options);
             } else {
                 return;
             }
+
+
         }
         if (me.#isUpdatePending === false) {
             me.#updatePromise = me.#enqueueUpdate();
@@ -298,12 +322,15 @@ export class ReactiveElement extends HTMLElement {
             const elementProps = me.constructor[elementProperties];
             if (elementProps.size > 0) {
                 for (const [p, options] of elementProps) {
+                    const { wrapped } = options;
+                    const value = me[p];
                     if (
-                        options.wrapped === true &&
+                        //options.wrapped === true &&
+                        wrapped === true &&
                         !me.#changedProperties.has(p) &&
-                        me[p] !== undefined
+                        value !== undefined
                     ) {
-                        me.#changeProperty(p, this[p], options);
+                        me.#changeProperty(p, undefined, options, value);
                     }
                 }
             }
@@ -367,13 +394,32 @@ export class ReactiveElement extends HTMLElement {
         return !me.#isUpdatePending;
     }
 
-    #changeProperty(name, oldValue, options) {
-        const me = this;
+    //#changeProperty(name, oldValue, options, initializeValue) {
+    #changeProperty(name, oldValue, {useDefault, reflect, wrapped}, initializeValue) {
+        const me = this;          
+
+        // Record default value when useDefault is used. This allows us to
+        // restore this value when the attribute is removed.
+        if (useDefault && !(me.#defaultValues ??= new Map()).has(name)) {
+            me.#defaultValues.set(name, initializeValue ?? oldValue ?? me[name]);
+
+            // if this is not wrapping an accessor, it must be an initial setting
+            // and in this case we do not want to record the change or reflect.
+            if (wrapped !== true || initializeValue !== undefined) {
+                return;
+            }
+        }
+
         if (!me.#changedProperties.has(name)) {
+            // On the initial change, the old value should be `undefined`, except
+            // with `useDefault`
+            if (!me.hasUpdated && !useDefault) {
+                oldValue = undefined;
+            }            
             me.#changedProperties.set(name, oldValue);
         }
 
-        if (options.reflect === true && me.#reflectingProperty !== name) {
+        if (reflect === true && me.#reflectingProperty !== name) {
             (me.#reflectingProperties ??= new Set()).add(name);
         }
     }
@@ -392,7 +438,8 @@ export class ReactiveElement extends HTMLElement {
                         : defaultConverter;
             // mark state reflecting
             me.#reflectingProperty = propName;
-            me[propName] = converter?.fromAttribute(value, options.type);
+            const convertedValue = converter?.fromAttribute(value, options.type)
+            me[propName] = convertedValue ?? me.#defaultValues?.get(propName) ?? null;
             // mark state not reflecting
             me.#reflectingProperty = null;
         }

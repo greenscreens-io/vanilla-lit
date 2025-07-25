@@ -227,7 +227,7 @@ export class ChildPart extends BasePart {
 
     _$clear(start = this._$startNode.nextSibling, from) {
         this._$notifyConnectionChanged?.(false, true, from);
-        while (start && start !== this._$endNode) {
+        while (start !== this._$endNode) {
             const n = start.nextSibling;
             start.remove();
             start = n;

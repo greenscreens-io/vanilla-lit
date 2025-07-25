@@ -14,7 +14,8 @@ Object.seal(PartType);
 
 export const ResultType = {
     HTML : 1,
-    SVG : 2
+    SVG : 2,
+    MATHML : 3
 }
 Object.seal(ResultType);
 

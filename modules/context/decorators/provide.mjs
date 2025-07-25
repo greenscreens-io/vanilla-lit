@@ -31,20 +31,26 @@ export function provide({ context: context, }) {
     return ((protoOrTarget, nameOrContext) => {
         const controllerMap = new WeakMap();
         if (typeof nameOrContext === 'object') {
+            /*
             nameOrContext.addInitializer(function () {
                 controllerMap.set(this, new ContextProvider(this, { context }));
             });
+            */
 
             return {
                 get() {
                     return protoOrTarget.get.call(this);
                 },
                 set(value) {
-                    controllerMap.get(this)?.setValue(value);
+                    if (value) controllerMap.get(this)?.setValue(value);
                     return protoOrTarget.set.call(this, value);
                 },
                 init(value) {
-                    controllerMap.get(this)?.setValue(value);
+                    //controllerMap.get(this)?.setValue(value);
+                    controllerMap.set(
+                        this,
+                        new ContextProvider(this, {context, initialValue: value})
+                    );                    
                     return value;
                 },
             };

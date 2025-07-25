@@ -45,20 +45,19 @@ export class ContextProvider extends ValueNotifier {
     hostConnected() {
         // emit an event to signal a provider is available for this context
         const me = this;
-        me.host.dispatchEvent(new ContextProviderEvent(me.context));
+        me.host.dispatchEvent(new ContextProviderEvent(me.context, me.host));
     }
 
     #onContextRequest(ev) {
         const me = this;
         // Only call the callback if the context matches.
+        if (ev.context !== me.context) return;
+
         // Also, in case an element is a consumer AND a provider
         // of the same context, we want to avoid the element to self-register.
-        // The check on composedPath (as opposed to ev.target) is to cover cases
-        // where the consumer is in the shadowDom of the provider (in which case,
-        // event.target === this.host because of event retargeting).
-        const consumerHost = ev.composedPath()[0];
-        const isInvalid = ev.context !== me.context || consumerHost === me.host;
-        if (isInvalid) return;
+        const consumerHost = ev.contextTarget ?? ev.composedPath()[0];
+        if (consumerHost === me.host) return;
+
         ev.stopPropagation();
         me.addCallback(ev.callback, consumerHost, ev.subscribe);
     }
@@ -72,14 +71,12 @@ export class ContextProvider extends ValueNotifier {
     #onProviderRequest(ev) {
         const me = this;
         // Ignore events when the context doesn't match.
+        if (ev.context !== me.context) return;
+
         // Also, in case an element is a consumer AND a provider
         // of the same context it shouldn't provide to itself.
-        // We use composedPath (as opposed to ev.target) to cover cases
-        // where the consumer is in the shadowDom of the provider (in which case,
-        // event.target === this.host because of event retargeting).
-        const childProviderHost = ev.composedPath()[0];
-        const isInvalid = ev.context !== me.context || childProviderHost === me.host;
-        if (isInvalid) return;
+        const childProviderHost = ev.contextTarget ?? ev.composedPath()[0];
+        if (childProviderHost === me.host) return;
 
         // Re-parent all of our subscriptions in case this new child provider
         // should take them over.
@@ -100,7 +97,7 @@ export class ContextProvider extends ValueNotifier {
             // the same subscriptions onto the end of the map over and over.
             if (seen.has(callback)) continue;
             seen.add(callback);
-            consumerHost.dispatchEvent(new ContextRequestEvent(me.context, callback, true));
+            consumerHost.dispatchEvent(new ContextRequestEvent(me.context, consumerHost, callback, true));
         }
         ev.stopPropagation();
     }

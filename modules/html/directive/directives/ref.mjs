@@ -49,6 +49,9 @@ class RefDirective extends AsyncDirective {
     }
 
     _updateRefValue(element) {
+        if (!this.isConnected) {
+            element = undefined;
+        }
         if (typeof this._ref === 'function') {
             // If the current ref was called with a previous value, call with
             // `undefined`; We do this to ensure callbacks are called in a consistent

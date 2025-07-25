@@ -151,11 +151,17 @@ export const setCommittedValue = (part, value = RESET_VALUE) => (part._$committe
 export const getCommittedValue = (part) => part._$committedValue;
 
 /**
- * Removes a ChildPart from the DOM, including any of its content.
+ * Removes a ChildPart from the DOM, including any of its content and markers.
+ *
+ * Note: The only difference between this and clearPart() is that this also
+ * removes the part's start node. This means that the ChildPart must own its
+ * start node, ie it must be a marker node specifically for this part and not an
+ * anchor from surrounding content.
  *
  * @param part The Part to remove
  */
 export const removePart = (part) => {
+    /*
     part._$notifyConnectionChanged?.(false, true);
     let start = part._$startNode;
     const end = (part._$endNode).nextSibling;
@@ -164,6 +170,9 @@ export const removePart = (part) => {
         (start).remove();
         start = n;
     }
+    */
+    part._$clear();
+    part._$startNode.remove();    
 };
 
 export const clearPart = (part) => {

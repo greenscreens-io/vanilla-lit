@@ -16,6 +16,7 @@ export * from './repeat.mjs';
 export * from './style-map.mjs';
 export * from './template-content.mjs';
 export * from './unsafe-html.mjs';
+export * from './unsafe-mathml.mjs';
 export * from './unsafe-svg.mjs';
 export * from './until.mjs';
 export * from './when.mjs';

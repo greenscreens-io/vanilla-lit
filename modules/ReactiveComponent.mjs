@@ -88,6 +88,8 @@ export class ReactiveComponent extends ReactiveElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.#childPart?.setConnected(false);
+    this.#childPart = null;
+    this.#renderOptions = {};
   }
 
   /**
