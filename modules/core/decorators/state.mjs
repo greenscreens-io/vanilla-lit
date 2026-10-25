@@ -10,7 +10,7 @@
  * an @ExportDecoratedItems annotation must be defined as a regular function,
  * not an arrow function.
  */
-import { property } from './property.js';
+import { property } from './property.mjs';
 
 /**
  * Declares a private or protected reactive property that still triggers

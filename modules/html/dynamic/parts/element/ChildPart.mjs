@@ -1,7 +1,12 @@
 import { PartType } from '../../../types.mjs';
 import { nothing, noChange, typeSymbol } from '../../../symbols.mjs';
 import { createMarker, isArray, isPrimitive, isIterable } from '../../../shared.mjs';
-import { ENABLE_EXTRA_SECURITY_HOOKS, isNoOp, createSanitizer } from '../../sanitizer.mjs';
+import {
+    ENABLE_EXTRA_SECURITY_HOOKS,
+    isNoOp,
+    createSanitizer,
+    trustFromTemplateString,
+} from '../../sanitizer.mjs';
 
 import { BasePart } from '../BasePart.mjs';
 import { Template } from '../../template/Template.mjs';
@@ -123,14 +128,13 @@ export class ChildPart extends BasePart {
 
     _commitNode(value) {
         if (this._$committedValue !== value) {
-            this._$clear();
             if (ENABLE_EXTRA_SECURITY_HOOKS && !isNoOp) {
                 const parentNodeName = this._$startNode.parentNode?.nodeName;
                 if (parentNodeName === 'STYLE' || parentNodeName === 'SCRIPT') {
-                    let message = 'Forbidden';
-                    throw new Error(message);
+                    throw new Error('Forbidden');
                 }
             }
+            this._$clear();
             this._$committedValue = this._insert(value);
         }
     }

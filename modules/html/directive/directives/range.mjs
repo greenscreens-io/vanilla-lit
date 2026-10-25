@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 export function* range(startOrEnd, end, step = 1) {
+    if (step === 0) {
+        throw new RangeError('range step must not be 0');
+    }
     const start = end === undefined ? 0 : startOrEnd;
     end ??= startOrEnd;
     for (let i = start; step > 0 ? i < end : end < i; i += step) {

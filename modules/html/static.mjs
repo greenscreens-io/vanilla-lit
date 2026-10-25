@@ -21,6 +21,7 @@ export class StaticHTML {
     static #propertySymbol = Symbol('_$static$');
 
     static #stringsCache = new Map();
+    static #stringsCacheLimit = 1024;
 
     /** Safely extracts the string part of a StaticValue. */
     static #unwrapStaticValue = (value) => {
@@ -118,16 +119,22 @@ export class StaticHTML {
         }
 
         if (hasStatics) {
-            const key = staticStrings.join('$$vlit$$');
+            const key = JSON.stringify(staticStrings);
             strings = StaticHTML.#stringsCache.get(key);
 
-            if (strings === undefined) {
+            if (strings !== undefined) {
+                StaticHTML.#stringsCache.delete(key);
+                StaticHTML.#stringsCache.set(key, strings);
+            } else {
                 // Beware: in general this pattern is unsafe, and doing so may bypass
                 // lit's security checks and allow an attacker to execute arbitrary
                 // code and inject arbitrary content.
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 staticStrings.raw = staticStrings;
                 StaticHTML.#stringsCache.set(key, (strings = staticStrings));
+                if (StaticHTML.#stringsCache.size > StaticHTML.#stringsCacheLimit) {
+                    StaticHTML.#stringsCache.delete(StaticHTML.#stringsCache.keys().next().value);
+                }
             }
             values = dynamicValues;
         }

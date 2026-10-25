@@ -9,7 +9,7 @@
  * an @ExportDecoratedItems annotation must be defined as a regular function,
  * not an arrow function.
  */
-import { defaultConverter, notEqual, } from '../reactive-element.js';
+import { defaultConverter, notEqual } from '../ReactiveElement.mjs';
 
 const legacyProperty = (options, proto, name) => {
     const hasOwnProperty = proto.hasOwnProperty(name);
@@ -45,9 +45,10 @@ export const standardProperty = (options = defaultPropertyDeclaration, target, c
     const { kind, metadata } = context;
 
     // Store the property options
-    let properties = globalThis.litPropertyMetadata.get(metadata);
+    const propertyMetadata = globalThis.ReactivePropertyMetadata ??= new WeakMap();
+    let properties = propertyMetadata.get(metadata);
     if (properties === undefined) {
-        globalThis.litPropertyMetadata.set(metadata, (properties = new Map()));
+        propertyMetadata.set(metadata, (properties = new Map()));
     }
 
     if (kind === 'setter') {

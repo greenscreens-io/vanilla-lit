@@ -75,13 +75,17 @@ export class CSS {
         if (supportsAdoptingStyleSheets) {
             renderRoot.adoptedStyleSheets = styles.map((s) => s instanceof CSSStyleSheet ? s : s.styleSheet);
         } else {
-            styles.map((s) => CSS.#createStyle(s.cssText)).forEach(style => renderRoot.appendChild(style));
+            for (const style of styles) {
+                renderRoot.appendChild(CSS.#createStyle(style.cssText));
+            }
         }
     }
 
     static getCompatibleStyle(s) {
         if (supportsAdoptingStyleSheets) return s;
-        return s instanceof CSSStyleSheet ? CSS.#cssResultFromStyleSheet(s) : s
+        return typeof CSSStyleSheet !== 'undefined' && s instanceof CSSStyleSheet
+            ? CSS.#cssResultFromStyleSheet(s)
+            : s;
     }
 
 }

@@ -11,7 +11,7 @@ export class UnsafeMathMLDirective extends UnsafeHTMLDirective {
 
 }
 
-UnsafeMathMLDirective.directiveName = 'unsafeHTML';
+UnsafeMathMLDirective.directiveName = 'unsafeMathML';
 UnsafeMathMLDirective.resultType = ResultType.MATHML;
 
 /**

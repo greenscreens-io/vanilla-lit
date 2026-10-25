@@ -27,15 +27,14 @@ export class Template {
         me.parts = [];
         me.el = Template.createElement(html, options);
         
-        me.#handleSVG(type);
+        me.#handleNamespace(type);
         me.#handleTemplate(partCount, attrNames);
     }
 
-    #handleSVG(type) {
-        // Re-parent SVG nodes into template root
-        if (type === ResultType.SVG) {
-            const svgElement = this.el.content.firstChild;
-            svgElement.replaceWith(...svgElement.childNodes);
+    #handleNamespace(type) {
+        if (type === ResultType.SVG || type === ResultType.MATHML) {
+            const namespaceElement = this.el.content.firstChild;
+            namespaceElement.replaceWith(...namespaceElement.childNodes);
         }
     }
 
@@ -120,8 +119,8 @@ export class Template {
         const lastIndex = strings.length - 1;
 
         if (lastIndex > 0) {
-            node.textContent = trustedTypes
-                ? trustedTypes.emptyScript
+            node.textContent = globalThis.trustedTypes
+                ? globalThis.trustedTypes.emptyScript
                 : '';
 
             for (let i = 0; i < lastIndex; i++) {

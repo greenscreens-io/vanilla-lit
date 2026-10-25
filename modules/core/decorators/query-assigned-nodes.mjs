@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import { desc } from './base.js';
+import { desc } from './base.mjs';
 
 /**
  * A property decorator that converts a class property into a getter that
@@ -37,10 +37,10 @@ export function queryAssignedNodes(options) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return ((obj, name) => {
         const { slot } = options ?? {};
-        const slotSelector = `slot${slot ? `[name=${slot}]` : ':not([name])'}`;
         return desc(obj, name, {
             get() {
-                const slotEl = this.renderRoot?.querySelector(slotSelector);
+                const slotEl = [...(this.renderRoot?.querySelectorAll('slot') ?? [])]
+                    .find((candidate) => candidate.name === (slot ?? ''));
                 return (slotEl?.assignedNodes(options) ?? []);
             },
         });

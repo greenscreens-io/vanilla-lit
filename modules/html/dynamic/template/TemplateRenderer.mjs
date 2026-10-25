@@ -82,7 +82,11 @@ export const getTemplateHtml = (strings, type) => {
     // parts. ElementParts are also reflected in this array as undefined
     // rather than a string, to disambiguate from attribute bindings.
     const attrNames = [];
-    let html = type === ResultType.SVG ? '<svg>' : '';
+    let html = type === ResultType.SVG
+        ? '<svg>'
+        : type === ResultType.MATHML
+            ? '<math>'
+            : '';
     
     // When we're inside a raw text tag (not it's text content), the regex
     // will still be tagRegex so we can find attributes, but will switch to
@@ -197,7 +201,12 @@ export const getTemplateHtml = (strings, type) => {
                     : s + marker + (attrNameEndIndex === -2 ? i : end);
     }
 
-    const htmlResult = html + (strings[l] || '<?>') + (type === ResultType.SVG ? '</svg>' : '');
+    const htmlResult = html + (strings[l] || '<?>') +
+        (type === ResultType.SVG
+            ? '</svg>'
+            : type === ResultType.MATHML
+                ? '</math>'
+                : '');
  
     // Returned as an array for terseness
     return [trustFromTemplateString(strings, htmlResult), attrNames];

@@ -3,7 +3,7 @@
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-import { desc } from './base.js';
+import { desc } from './base.mjs';
 
 // Shared fragment used to generate empty NodeLists when a render root is
 // undefined

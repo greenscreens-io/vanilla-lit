@@ -1,6 +1,6 @@
 import { nothing } from '../../../symbols.mjs'
 import { PartType } from '../../../types.mjs';
-import { ENABLE_EXTRA_SECURITY_HOOKS, sanityze } from '../../sanitizer.mjs';
+import { ENABLE_EXTRA_SECURITY_HOOKS, createSanitizer } from '../../sanitizer.mjs';
 
 import { AttributePart } from './AttributePart.mjs';
 
@@ -15,7 +15,7 @@ export class PropertyPart extends AttributePart {
     _commitValue(value) {
         if (ENABLE_EXTRA_SECURITY_HOOKS) {
             if (this._sanitizer === undefined) {
-                this._sanitizer = sanityze(this.element, this.name, 'property');
+                this._sanitizer = createSanitizer(this.element, this.name, 'property');
             }
             value = this._sanitizer(value);
         }

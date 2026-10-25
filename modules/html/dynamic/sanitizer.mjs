@@ -21,6 +21,7 @@ const identityFunction = (value) => value;
 const noopSanitizer = (_node, _name, _type) => identityFunction;
 
 let sanitizerFactoryInternal = noopSanitizer;
+export let isNoOp = true;
 
 /** Sets the global sanitizer factory. */
 export const setSanitizer = (newSanitizer) => {
@@ -30,11 +31,10 @@ export const setSanitizer = (newSanitizer) => {
             ` setSanitizeDOMValueFactory should be called at most once.`);
     }
     sanitizerFactoryInternal = newSanitizer;
+    isNoOp = false;
 }
 
-export const isNoOp = sanitizerFactoryInternal === noopSanitizer;
-
-export const sanityze  = sanitizerFactoryInternal;
+export const sanityze = (node, name, type) => sanitizerFactoryInternal(node, name, type);
 
 export const createSanitizer = (node, name, type) => {
     return sanitizerFactoryInternal(node, name, type);

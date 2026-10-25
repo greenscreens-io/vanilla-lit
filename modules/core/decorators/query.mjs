@@ -3,7 +3,7 @@
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-import { desc } from './base.js';
+import { desc } from './base.mjs';
 
 /**
  * A property decorator that converts a class property into a getter that

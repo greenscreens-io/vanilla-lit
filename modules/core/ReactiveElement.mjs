@@ -4,6 +4,7 @@ import { AttributeConverter } from './AttributeConverter.mjs';
 import { CSS } from './css/index.mjs';
 
 const defaultConverter = new AttributeConverter();
+export { defaultConverter };
 export const notEqual = (val, old) => !Object.is(val, old);
 
 const defaultPropertyDeclaration = {
@@ -22,6 +23,7 @@ const elementStyles = Symbol();
 const initializers = Symbol();
 const finalize = Symbol();
 const finalized = Symbol();
+const metadataSymbol = Symbol.metadata ??= Symbol.for('metadata');
 
 const prepareFn = function () {
     const me = this;
@@ -43,7 +45,7 @@ const attributeNameForProperty = (name, options) => {
                 : undefined;
 }
 
-globalThis.ReactivePropertyMetadata ??= new WeakMap();
+const propertyMetadata = globalThis.ReactivePropertyMetadata ??= new WeakMap();
 
 /**
  * Reactive WebComponent based on Google ltd. Lit ReactiveElement
@@ -79,8 +81,9 @@ export class ReactiveElement extends HTMLElement {
     /**
      * Returns a list of attributes corresponding to the registered properties.
     */
+    static [prepare] = prepareFn;
+
     static get observedAttributes() {
-        Object.defineProperty(ReactiveElement.__proto__, prepare, { value: prepareFn });
         const me = this;
         me[finalize]();
         return me[attributeToPropertyMap] && [...me[attributeToPropertyMap].keys()];
@@ -89,13 +92,12 @@ export class ReactiveElement extends HTMLElement {
     static addInitializer(initializer) {
         const me = this;
         me[prepare]();
-        me.initializers ??= [].push(initializer);
+        (me[initializers] ??= []).push(initializer);
     }
 
     static [finalize]() {
         const me = this;
-        //if (Object.hasOwn(me, 'finalized')) return;
-        if (me[finalized] === true) return;
+        if (Object.hasOwn(me, finalized) && me[finalized] === true) return;
         me[finalized] = true;
         me[prepare]();
 
@@ -110,9 +112,9 @@ export class ReactiveElement extends HTMLElement {
             }
         }
 
-        const metadata = me[Symbol.for('metadata')];
-        if (metadata !== null) {
-            const properties = ReactivePropertyMetadata.get(metadata);
+        const metadata = me[metadataSymbol];
+        if (metadata != null) {
+            const properties = propertyMetadata.get(metadata);
             if (properties !== undefined) {
                 for (const [p, options] of properties) {
                     me[elementProperties].set(p, options);
@@ -130,22 +132,26 @@ export class ReactiveElement extends HTMLElement {
             }
         }
 
-        me[initializers] = me.finalizeStyles(me.styles);
+        me[elementStyles] = me.finalizeStyles(me.styles);
     }
 
     static finalizeStyles(styles) {
-        const elementStyles = [];
-        if (Array.isArray(styles)) {
-            const set = new Set(styles.flat(Infinity).reverse());
-            set.forEach(s => elementStyles.unshift(CSS.getCompatibleStyle(s)));
-        } else if (styles !== undefined) {
-            elementStyles.push(CSS.getCompatibleStyle(styles));
-        }
-        return elementStyles;
+        const superCtor = Object.getPrototypeOf(this);
+        const inheritedStyles = superCtor[elementStyles] ?? [];
+        const ownStyles = Array.isArray(styles)
+            ? [...new Set(styles.flat(Infinity).reverse())].reverse()
+            : styles === undefined
+                ? []
+                : [styles];
+        return [
+            ...inheritedStyles,
+            ...ownStyles.map((style) => CSS.getCompatibleStyle(style)),
+        ];
     }
 
     static createProperty(name, options) {
         const me = this;
+        options = { ...defaultPropertyDeclaration, ...options };
         if (options.state) options.attribute = false;
         me[prepare]();
         // Whether this property is wrapping accessors.
@@ -210,11 +216,6 @@ export class ReactiveElement extends HTMLElement {
     disconnectedCallback() {
         const me = this;
         me.#controllers?.forEach((c) => c.hostDisconnected?.());
-        me.adoptedStyleSheets = [];
-        me.#renderRoot = null;
-        if (me.shadowRoot) {
-            me.shadowRoot.adoptedStyleSheets = [];
-        }
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -273,6 +274,10 @@ export class ReactiveElement extends HTMLElement {
         // defined, and it returns undefined, setting #reflectingProperties to undefined
         me.#reflectingProperties &&= me.#reflectingProperties.forEach((p) => me.#propertyToAttribute(p, this[p]));
         me.#markUpdated();
+    }
+
+    _$changeProperty(name, oldValue, options, initializeValue) {
+        this.#changeProperty(name, oldValue, options, initializeValue);
     }
 
     get updateComplete() {
@@ -436,12 +441,13 @@ export class ReactiveElement extends HTMLElement {
                     : options.converter?.fromAttribute !== undefined
                         ? options.converter
                         : defaultConverter;
-            // mark state reflecting
             me.#reflectingProperty = propName;
-            const convertedValue = converter?.fromAttribute(value, options.type)
-            me[propName] = convertedValue ?? me.#defaultValues?.get(propName) ?? null;
-            // mark state not reflecting
-            me.#reflectingProperty = null;
+            try {
+                const convertedValue = converter?.fromAttribute(value, options.type);
+                me[propName] = convertedValue ?? me.#defaultValues?.get(propName) ?? null;
+            } finally {
+                me.#reflectingProperty = null;
+            }
         }
     }
 
@@ -456,16 +462,17 @@ export class ReactiveElement extends HTMLElement {
                     undefined
                     ? (options.converter)
                     : defaultConverter;
-            const attrValue = converter?.toAttribute(value, options.type);
-
             me.#reflectingProperty = name;
-            if (attrValue == null) {
-                me.removeAttribute(attr);
-            } else {
-                me.setAttribute(attr, attrValue);
+            try {
+                const attrValue = converter?.toAttribute(value, options.type);
+                if (attrValue == null) {
+                    me.removeAttribute(attr);
+                } else {
+                    me.setAttribute(attr, attrValue);
+                }
+            } finally {
+                me.#reflectingProperty = null;
             }
-            // mark state not reflecting
-            me.#reflectingProperty = null;
         }
     }
 

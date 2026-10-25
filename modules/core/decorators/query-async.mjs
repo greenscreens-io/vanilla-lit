@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import { desc } from './base.js';
+import { desc } from './base.mjs';
 
 // Note, in the future, we may extend this decorator to support the use case
 // where the queried element may need to do work to become ready to interact
